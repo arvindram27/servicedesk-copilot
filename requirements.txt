@@ -1,0 +1,11 @@
+# Runtime dependencies, pinned to the versions resolved by the Gate B0 install
+# on Python 3.13.3 (CPython 3.13, win_amd64). Transitive dependencies are
+# resolved by pip at install time.
+fastapi==0.165.0
+uvicorn==0.54.0
+pydantic==2.14.4
+pydantic-settings==2.16.3
+sqlalchemy==2.1.9
+alembic==1.20.1
+httpx==0.28.1
+prometheus-client==0.26.0

@@ -1,0 +1,62 @@
+# ServiceDesk Copilot - local Compose topology (authored as text, not started).
+#
+# Exposure rule: the app is reachable from the host's loopback only. Docker
+# publishes 127.0.0.1:8000 on the host; every service sits on a private
+# internal network; the ITSM service publishes nothing. There is no widening
+# env flag in local mode.
+#
+# The ITSM service is declared here only to fix the exposure boundary. Its
+# application module arrives in Gate B6; nothing builds or starts in B0.
+
+name: servicedesk-copilot
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: servicedesk-copilot:local
+    command:
+      - uvicorn
+      - app.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --workers
+      - "1"
+    environment:
+      SDC_MODE: demo_fake
+      SDC_WRITES_ENABLED: "true"
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - internal
+    restart: "no"
+
+  itsm:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: servicedesk-copilot:local
+    command:
+      - uvicorn
+      - app.itsm.main:create_app
+      - --factory
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8010"
+      - --workers
+      - "1"
+    expose:
+      - "8010"
+    networks:
+      - internal
+    restart: "no"
+
+networks:
+  internal:
+    name: sdc_internal
+    internal: true

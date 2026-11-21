@@ -1,0 +1,27 @@
+[project]
+name = "servicedesk-copilot"
+version = "0.0.0"
+description = "ServiceDesk Copilot - local-only, single-user skeleton (Gate B0)"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.mypy]
+python_version = "3.13"
+files = ["app", "tests"]
+warn_unused_ignores = true

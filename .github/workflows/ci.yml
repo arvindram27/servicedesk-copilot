@@ -1,0 +1,36 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  b0-skeleton:
+    runs-on: windows-latest
+    env:
+      SDC_MODE: ci_fake
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Create virtual environment
+        run: python -m venv .venv
+
+      - name: Install dependencies
+        run: .venv\Scripts\python.exe -m pip install -r requirements.txt -r requirements-dev.txt
+
+      - name: Lint
+        run: .venv\Scripts\ruff.exe check .
+
+      - name: Format check
+        run: .venv\Scripts\ruff.exe format --check .
+
+      - name: B0 tests
+        run: >-
+          .venv\Scripts\python.exe -m pytest
+          tests/test_exposure_config.py
+          tests/test_config.py
+          tests/test_logging_redaction.py

@@ -1,0 +1,14 @@
+# Provider pricing table for the hosted adapter (B5 and later).
+#
+# Empty until provider and model selection is made at its own reviewed gate.
+# Until an entry exists, hosted mode fails closed: the money cap cannot be
+# enforced without per-token prices and any fixed per-request fee.
+#
+# Entry shape (documented, not yet populated):
+#   providers:
+#     <provider-key>:
+#       models:
+#         <model-name>:
+#           input_price_per_token: "<decimal>"
+#           output_price_per_token: "<decimal>"
+#           fixed_fee_per_request: "<decimal>"
