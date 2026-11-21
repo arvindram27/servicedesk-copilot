@@ -35,9 +35,7 @@ def _client(tmp_path: Path, mode: Mode = Mode.CI_FAKE) -> tuple[TestClient, Path
     return TestClient(create_app(settings)), settings.runtime_dir
 
 
-def _migrated_client(
-    tmp_path: Path, mode: Mode = Mode.CI_FAKE
-) -> tuple[TestClient, Path]:
+def _migrated_client(tmp_path: Path, mode: Mode = Mode.CI_FAKE) -> tuple[TestClient, Path]:
     client, runtime = _client(tmp_path, mode)
     run_upgrade(runtime / DATABASE_NAME)
     return client, runtime
@@ -123,9 +121,7 @@ def test_readyz_probe_leaves_zero_state(tmp_path: Path, preset: int) -> None:
         }
         tables_before = {
             row[0]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         connection.close()
@@ -142,9 +138,7 @@ def test_readyz_probe_leaves_zero_state(tmp_path: Path, preset: int) -> None:
         }
         tables_after = {
             row[0]
-            for row in connection.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'"
-            )
+            for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")
         }
     finally:
         connection.close()

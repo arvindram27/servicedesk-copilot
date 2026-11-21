@@ -199,8 +199,7 @@ class HostedProvider:
         body = {
             "model": self.model,
             "messages": [
-                {"role": message.role, "content": message.content}
-                for message in request.messages
+                {"role": message.role, "content": message.content} for message in request.messages
             ],
             "max_tokens": request.max_tokens,
             "temperature": request.temperature,

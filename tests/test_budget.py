@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from app.providers.base import Pricing
 from app.providers.budget import (
+    BudgetError,
     BudgetExceeded,
     BudgetLedger,
     BudgetPolicy,
@@ -235,7 +236,7 @@ def test_m3_malformed_usage_is_rejected(tmp_path: Path) -> None:
     ledger = _ledger(tmp_path)
     _reserve(ledger)
 
-    with pytest.raises(Exception):
+    with pytest.raises(BudgetError, match="^invalid_usage$"):
         ledger.settle(
             request_id="req-1",
             attempt=1,

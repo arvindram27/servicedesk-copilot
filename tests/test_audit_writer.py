@@ -100,9 +100,7 @@ class _FailingConnection:
     def in_transaction(self) -> bool:
         return True
 
-    def exec_driver_sql(
-        self, statement: str, parameters: tuple[object, ...]
-    ) -> object:
+    def exec_driver_sql(self, statement: str, parameters: tuple[object, ...]) -> object:
         raise IntegrityError(
             statement,
             parameters,
@@ -125,9 +123,7 @@ def test_insert_failure_raises_safe_audit_write_error() -> None:
     assert error.__cause__ is None
     assert error.__context__ is None
 
-    rendered = "".join(
-        traceback.format_exception(type(error), error, error.__traceback__)
-    )
+    rendered = "".join(traceback.format_exception(type(error), error, error.__traceback__))
     for leaked in ("INSERT INTO audit_events", "PARAM-MARKER-0123456789", "VALUES"):
         assert leaked not in str(error)
         assert leaked not in rendered
@@ -244,9 +240,7 @@ def test_migration_wrapper_payload_matches_schema_contract(tmp_path: Path) -> No
     runtime = tmp_path / "runtime"
     database_path = runtime / "copilot.db"
 
-    code = migrate_module.run_wrapper(
-        database_path, runtime_dir=runtime, stream=io.StringIO()
-    )
+    code = migrate_module.run_wrapper(database_path, runtime_dir=runtime, stream=io.StringIO())
     assert code == 0
 
     rows = _rows(database_path)

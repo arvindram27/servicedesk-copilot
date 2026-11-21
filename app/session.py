@@ -94,9 +94,7 @@ class SessionStore:
 
     def _purge_locked(self, now: float) -> int:
         expired = [
-            key
-            for key, session in self._sessions.items()
-            if now >= session.expires_at_monotonic
+            key for key, session in self._sessions.items() if now >= session.expires_at_monotonic
         ]
         for key in expired:
             del self._sessions[key]

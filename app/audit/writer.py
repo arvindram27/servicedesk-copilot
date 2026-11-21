@@ -28,10 +28,11 @@ from __future__ import annotations
 import sqlite3
 from typing import Final
 
-from app.audit.schema import MAX_PAYLOAD_DEPTH, AuditEvent, AuditSchemaError, to_json
-from app.logging import redact
 from sqlalchemy import Connection
 from sqlalchemy.exc import SQLAlchemyError
+
+from app.audit.schema import MAX_PAYLOAD_DEPTH, AuditEvent, AuditSchemaError, to_json
+from app.logging import redact
 
 INSERT_SQL: Final[str] = (
     "INSERT INTO audit_events"
@@ -61,10 +62,7 @@ def redact_payload(value: object, *, depth: int = 0) -> object:
     if type(value) is str:
         return redact(value)
     if type(value) is dict:
-        return {
-            key: redact_payload(item, depth=depth + 1)
-            for key, item in value.items()
-        }
+        return {key: redact_payload(item, depth=depth + 1) for key, item in value.items()}
     if type(value) is list:
         return [redact_payload(item, depth=depth + 1) for item in value]
     return value

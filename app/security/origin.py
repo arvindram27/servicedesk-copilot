@@ -20,6 +20,7 @@ from typing import Final
 from fastapi import Request
 from fastapi.responses import JSONResponse
 
+from app.config import Settings
 from app.security import problem
 
 MAX_HEADER_LENGTH: Final[int] = 255
@@ -113,9 +114,9 @@ def _parse_origin(raw: str) -> tuple[str, str] | None:
     return scheme_lower, f"{host}:{port}"
 
 
-def _allowlist(settings: object) -> set[str]:
-    port = getattr(settings, "listen_port")
-    configured = getattr(settings, "listen_host")
+def _allowlist(settings: Settings) -> set[str]:
+    port = settings.listen_port
+    configured = settings.listen_host
     entries: set[str] = set()
     for host in LOOPBACK_HOSTS | {configured}:
         lowered = str(host).lower()
@@ -144,10 +145,7 @@ def classify_request(request: Request) -> Classification | JSONResponse:
         return problem(403, "host_not_allowed")
 
     origin_values = request.headers.getlist("origin")
-    has_sec_fetch = any(
-        name.lower().startswith("sec-fetch-")
-        for name in request.headers.keys()
-    )
+    has_sec_fetch = any(name.lower().startswith("sec-fetch-") for name in request.headers.keys())
 
     if not origin_values:
         if has_sec_fetch:

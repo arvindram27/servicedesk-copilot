@@ -187,7 +187,7 @@ class AuditEvent:
         for required_key in spec.required:
             if required_key not in supplied:
                 raise AuditSchemaError("missing_required_key", required_key)
-        for key in supplied - declared:
+        for _key in supplied - declared:
             raise AuditSchemaError("extra_payload_key")
 
         for key, kind in {**spec.required, **spec.optional}.items():

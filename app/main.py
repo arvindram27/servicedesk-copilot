@@ -12,7 +12,8 @@ from fastapi import FastAPI
 from app.config import Settings
 from app.health import router as health_router
 from app.metrics import install_metrics
-from app.session import SessionStore, router as session_router
+from app.session import SessionStore
+from app.session import router as session_router
 from app.stub_write import router as stub_router
 
 VERSION = "0.0.0"

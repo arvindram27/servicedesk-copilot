@@ -69,10 +69,7 @@ def test_request_metrics_increment_per_route(tmp_path: Path) -> None:
     client.get("/healthz")
     text = _text(client)
 
-    assert (
-        'sdc_http_requests_total{method="GET",route="/healthz",status="200"} 1.0'
-        in text
-    )
+    assert 'sdc_http_requests_total{method="GET",route="/healthz",status="200"} 1.0' in text
     assert 'route="/healthz"' in text
 
 

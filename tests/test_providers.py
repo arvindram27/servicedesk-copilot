@@ -13,6 +13,7 @@ from app.providers.base import (
     ChatRequest,
     Message,
     ProviderCallError,
+    ProviderRequestError,
     ProviderUnavailable,
     validate_chat_request,
 )
@@ -133,7 +134,7 @@ def test_fake_bound_matches_the_scripted_prompt_count() -> None:
     ],
 )
 def test_chat_request_validation_rejects_bad_input(chat_request: ChatRequest) -> None:
-    with pytest.raises(Exception):
+    with pytest.raises(ProviderRequestError):
         validate_chat_request(chat_request)
 
 
@@ -254,9 +255,7 @@ def test_hosted_enablement_fails_closed(
     settings, pricing_path = _settings(tmp_path, **overrides)
 
     with pytest.raises(ProviderUnavailable) as excinfo:
-        HostedProvider(
-            settings, token_counter=lambda request: 10, pricing_path=pricing_path
-        )
+        HostedProvider(settings, token_counter=lambda request: 10, pricing_path=pricing_path)
 
     assert excinfo.value.code == code
 
@@ -283,9 +282,7 @@ def test_hosted_calls_disabled_is_enforced_by_the_adapter(tmp_path: Path) -> Non
     )
 
     with pytest.raises(ProviderUnavailable) as excinfo:
-        HostedProvider(
-            bypassed, token_counter=lambda request: 10, pricing_path=pricing_path
-        )
+        HostedProvider(bypassed, token_counter=lambda request: 10, pricing_path=pricing_path)
 
     assert excinfo.value.code == "hosted_calls_disabled"
 
@@ -295,9 +292,7 @@ def test_hosted_requires_an_approval_file(tmp_path: Path) -> None:
     settings, pricing_path = _settings(tmp_path, run_id="run-2")
 
     with pytest.raises(ProviderUnavailable) as excinfo:
-        HostedProvider(
-            settings, token_counter=lambda request: 10, pricing_path=pricing_path
-        )
+        HostedProvider(settings, token_counter=lambda request: 10, pricing_path=pricing_path)
 
     assert excinfo.value.code == "run_not_approved"
 
@@ -310,9 +305,7 @@ def test_hosted_requires_approval_binding(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ProviderUnavailable) as excinfo:
-        HostedProvider(
-            settings, token_counter=lambda request: 10, pricing_path=pricing_path
-        )
+        HostedProvider(settings, token_counter=lambda request: 10, pricing_path=pricing_path)
 
     assert excinfo.value.code == "approval_mismatch"
 
@@ -320,9 +313,7 @@ def test_hosted_requires_approval_binding(tmp_path: Path) -> None:
         json.dumps(_approval(base_url="https://other.example.test")), encoding="utf-8"
     )
     with pytest.raises(ProviderUnavailable) as excinfo:
-        HostedProvider(
-            settings, token_counter=lambda request: 10, pricing_path=pricing_path
-        )
+        HostedProvider(settings, token_counter=lambda request: 10, pricing_path=pricing_path)
 
     assert excinfo.value.code == "approval_base_url_mismatch"
 

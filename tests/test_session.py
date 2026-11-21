@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 from app.config import Settings
 from app.main import create_app
 from app.session import SessionStore

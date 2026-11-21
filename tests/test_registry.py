@@ -9,9 +9,9 @@ from pathlib import Path
 import httpx
 import pytest
 import yaml
+from app.audit.schema import AuditEvent
 from app.audit.writer import write_event
 from app.config import Mode, Settings
-from app.audit.schema import AuditEvent
 from app.providers.base import (
     TOKEN_QUANTITY_LIMIT,
     ChatRequest,
@@ -172,9 +172,7 @@ def test_missing_usage_is_unknown_and_keeps_the_reservation(tmp_path: Path) -> N
         settings,
         token_counter=lambda request: 100,
         transport=httpx.MockTransport(
-            lambda request: httpx.Response(
-                200, json={"choices": [{"message": {"content": "ok"}}]}
-            )
+            lambda request: httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
         ),
         pricing_path=pricing_path,
     )
@@ -229,9 +227,7 @@ def _budgeted_stub(tmp_path: Path, usage: Usage, events: list[AuditEvent]) -> Bu
     policy = BudgetPolicy(calls_max=4, tokens_max=100000, usd_max=Decimal("1.00"))
     ledger = BudgetLedger(tmp_path / "budget" / "run-1.json", run_id="run-1")
     stub = _StubUsageProvider(usage)
-    return BudgetedProvider(
-        stub, ledger, policy, pricing=stub.pricing, audit_sink=events.append
-    )
+    return BudgetedProvider(stub, ledger, policy, pricing=stub.pricing, audit_sink=events.append)
 
 
 @pytest.mark.parametrize(

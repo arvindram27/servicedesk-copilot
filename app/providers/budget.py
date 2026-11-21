@@ -578,9 +578,7 @@ class BudgetLedger:
             data["calls_reserved"] = max(0, data["calls_reserved"] - entry["calls"])
             data["tokens_reserved"] = max(0, data["tokens_reserved"] - entry["tokens"])
             data["usd_reserved"] = format(
-                quantize_usd(
-                    max(Decimal("0"), Decimal(data["usd_reserved"]) - reserved_usd)
-                ),
+                quantize_usd(max(Decimal("0"), Decimal(data["usd_reserved"]) - reserved_usd)),
                 "f",
             )
             data["calls_settled"] += 1
@@ -637,9 +635,7 @@ class BudgetLedger:
             state=entry["state"],
             actual_prompt_tokens=entry.get("actual_prompt_tokens"),
             actual_completion_tokens=entry.get("actual_completion_tokens"),
-            actual_usd=(
-                None if entry.get("actual_usd") is None else Decimal(entry["actual_usd"])
-            ),
+            actual_usd=(None if entry.get("actual_usd") is None else Decimal(entry["actual_usd"])),
             usage_exceeded=bool(entry.get("usage_exceeded")),
             conflict=entry.get("conflict"),
             unknown_reason=entry.get("unknown_reason"),

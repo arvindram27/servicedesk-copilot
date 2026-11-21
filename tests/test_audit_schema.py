@@ -41,9 +41,7 @@ def _optional_payload(event_type: str) -> dict[str, object] | None:
         return payload
     if event_type == "budget.settle_unknown":
         payload = _payload(event_type)
-        payload.update(
-            {"calls_reserved": 1, "tokens_reserved": 2048, "usd_reserved": "0.0100"}
-        )
+        payload.update({"calls_reserved": 1, "tokens_reserved": 2048, "usd_reserved": "0.0100"})
         return payload
     return None
 
