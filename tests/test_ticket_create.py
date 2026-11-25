@@ -21,6 +21,7 @@ from app.db.connection import create_engine_for
 from app.main import create_app
 from app.tickets import TicketDraft, TicketDraftError, immediate_transaction
 from fastapi.testclient import TestClient
+from scripts.seed_demo import seed_demo
 from sqlalchemy.exc import OperationalError
 
 from db_support import TOKEN_ID, run_upgrade, seed_basics
@@ -557,3 +558,37 @@ def test_category_deactivated_between_confirm_and_create_leaves_token_unused(env
     assert _token_state(env.db, token) == (None, None)
     assert _count(env.db, "tickets") == 0
     assert _count(env.db, "idempotency_keys") == 0
+
+
+def test_seeded_database_runs_confirm_and_create(tmp_path: Path) -> None:
+    """Seed path: a migrated, seeded database confirms and creates through the API."""
+    runtime = tmp_path / "runtime"
+    runtime.mkdir()
+    database = runtime / "seeded.db"
+    run_upgrade(database)
+    assert seed_demo(database) == (1, 1)
+    settings = Settings(mode=Mode.CI_FAKE, runtime_dir=runtime, database_path=database)
+    client = TestClient(create_app(settings), base_url=BASE_URL)
+    bootstrap = client.post("/api/session")
+    assert bootstrap.status_code == 200
+    body = bootstrap.json()
+    headers = {"x-sdc-session": body["session_id"], "x-sdc-csrf": body["csrf_token"]}
+    key = str(uuid4())
+    confirm = client.post("/api/ticket-confirmations", json={"draft": DRAFT}, headers=headers)
+    assert confirm.status_code == 200, confirm.text
+    token = confirm.json()["confirmation_token"]
+    response = client.post(
+        "/api/tickets",
+        json={"draft": DRAFT, "confirmation_token": token},
+        headers={**headers, "idempotency-key": key},
+    )
+    assert response.status_code == 201, response.text
+    ticket_id = response.json()["ticket_id"]
+    assert _count(database, "tickets") == 1
+    state = _token_state(database, token)
+    assert state is not None
+    assert state[0] is not None
+    assert state[1] == ticket_id
+    assert _query(database, "SELECT status, ticket_id FROM idempotency_keys") == [
+        ("completed", ticket_id)
+    ]

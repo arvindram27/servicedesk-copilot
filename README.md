@@ -78,6 +78,9 @@ py -3.13 -m venv .venv
 # Create or upgrade runtime/servicedesk.db and record the migration audit event.
 .venv\Scripts\python -m scripts.migrate
 
+# Add the local requester and the Hardware category the ticket routes need.
+.venv\Scripts\python -m scripts.seed_demo
+
 # Run the app on the loopback host and port the Host guard expects.
 .venv\Scripts\python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
 
@@ -97,6 +100,32 @@ not migrate at startup, so run `scripts.migrate` before the first `/chat`.
 `127.0.0.1:8000`. The install step needs access to your configured package
 index. If `py -3.13` is not available, use your Python 3.13 executable in place
 of it.
+
+### Demo the ticket flow
+
+With the seed applied and the server running, these commands get a session,
+confirm a draft and create the ticket.
+
+```powershell
+$session = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/session'
+$headers = @{ 'x-sdc-session' = $session.session_id; 'x-sdc-csrf' = $session.csrf_token }
+$draft = @{ title = 'Printer offline'; category = 'hardware'; priority = 'normal'; description = 'The office printer shows offline.' }
+$confirm = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/ticket-confirmations' -Headers $headers -ContentType 'application/json' -Body (@{ draft = $draft } | ConvertTo-Json -Depth 4)
+$key = [guid]::NewGuid().ToString()
+$ticket = Invoke-RestMethod -Method Post -Uri 'http://127.0.0.1:8000/api/tickets' -Headers ($headers + @{ 'Idempotency-Key' = $key }) -ContentType 'application/json' -Body (@{ draft = $draft; confirmation_token = $confirm.confirmation_token } | ConvertTo-Json -Depth 4)
+$ticket
+```
+
+Read the ticket and audit rows back with the same Python:
+
+```powershell
+.venv\Scripts\python -c "import sqlite3; c = sqlite3.connect('runtime/servicedesk.db'); print(c.execute('select ticket_id, requester_label, title, category_id, priority, status from tickets').fetchall()); print(c.execute('select event_type, outcome, payload_json from audit_events order by seq').fetchall())"
+```
+
+These commands were written from the routes and were not run by the test
+suite. The path is local only: it uses the in-process stand-in, not a real
+ITSM, and makes no model call. The seed adds only the local requester and the
+Hardware category; it does not create the database.
 
 ## Check and stop the local server
 
@@ -135,14 +164,15 @@ synthetic demo content, not vendor guidance.
 
 ## Checks and evidence
 
-Local results reported on 25 November 2026 in this tree: Ruff check and format
-passed; the full suite passed 435 tests with one Windows filename skip. These are
+Local results reported on 26 November 2026 in this tree: Ruff check and format
+passed; the full suite passed 439 tests with one Windows filename skip. These are
 local results, not a CI result. CI runs Ruff check and format plus the three B0
 modules, `tests/test_exposure_config.py`, `tests/test_config.py` and
 `tests/test_logging_redaction.py`, and the ticket modules
-`tests/test_audit_schema.py` and `tests/test_ticket_create.py`; it does not run
-the Gate 1 chat, KB or citation tests, the lifespan test, or a migration. Full
-pytest is not part of CI. The GitHub workflow has not run yet. The pytest-asyncio
+`tests/test_audit_schema.py`, `tests/test_ticket_create.py` and
+`tests/test_demo_seed.py`; it does not run the Gate 1 chat, KB or citation tests,
+the lifespan test, or a migration. Full pytest is not part of CI. The GitHub
+workflow runs on push; this README does not record its result. The pytest-asyncio
 fixture-loop-scope warning and the Starlette/httpx deprecation warning remain.
 The lifespan test asserts that the app-owned audit engine is disposed on
 shutdown; it uses a recording engine, so it proves the lifespan wiring, not real
@@ -179,8 +209,9 @@ enforcement.
   ASCII only, as read from the code and not tested. A category switched off
   before create refuses the create and leaves the confirmation unused. A rename
   is not tested. Category IDs are not accepted.
-- CI runs the three B0 modules plus `tests/test_audit_schema.py` and
-  `tests/test_ticket_create.py`. Full pytest is not part of CI.
+- CI runs the three B0 modules plus `tests/test_audit_schema.py`,
+  `tests/test_ticket_create.py` and `tests/test_demo_seed.py`. Full pytest is
+  not part of CI.
 
 ## Limits
 
