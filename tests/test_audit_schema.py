@@ -19,11 +19,41 @@ def _payload(event_type: str) -> dict[str, object]:
         }
     if event_type == "provider.error":
         return {"stage": "chat", "error_class": "TimeoutError"}
-    return {"run_id": "run-1", "reason": "timeout"}
+    if event_type == "budget.settle_unknown":
+        return {"run_id": "run-1", "reason": "timeout"}
+    if event_type == "chat.answer":
+        return {
+            "article_id": "PRN-001",
+            "article_version": 1,
+            "section": "Check the connection",
+            "citation_ok": True,
+            "top_k": 3,
+        }
+    if event_type == "chat.refusal":
+        return {"reason": "no_supporting_article"}
+    if event_type == "ticket.confirm":
+        return {"draft_hash": "draft-hash", "token_issued": True}
+    if event_type == "ticket.create":
+        return {"ticket_id": "INC-TEST", "draft_hash": "draft-hash"}
+    if event_type == "ticket.replay":
+        return {"ticket_id": "INC-TEST", "draft_hash": "draft-hash"}
+    if event_type == "ticket.reject":
+        return {"reason": "confirmation_required"}
+    raise AssertionError(f"no required-key fixture for {event_type}")
 
 
-def test_registry_contains_exactly_the_three_types() -> None:
-    assert set(EVENT_TYPES) == {"migration.applied", "provider.error", "budget.settle_unknown"}
+def test_registry_contains_exactly_the_nine_types() -> None:
+    assert set(EVENT_TYPES) == {
+        "migration.applied",
+        "provider.error",
+        "budget.settle_unknown",
+        "chat.answer",
+        "chat.refusal",
+        "ticket.confirm",
+        "ticket.create",
+        "ticket.replay",
+        "ticket.reject",
+    }
 
 
 def _optional_payload(event_type: str) -> dict[str, object] | None:
@@ -42,6 +72,14 @@ def _optional_payload(event_type: str) -> dict[str, object] | None:
     if event_type == "budget.settle_unknown":
         payload = _payload(event_type)
         payload.update({"calls_reserved": 1, "tokens_reserved": 2048, "usd_reserved": "0.0100"})
+        return payload
+    if event_type == "chat.answer":
+        payload = _payload(event_type)
+        payload.update({"mode": "extractive"})
+        return payload
+    if event_type == "chat.refusal":
+        payload = _payload(event_type)
+        payload.update({"top_k": 3, "best_score_milli": 0})
         return payload
     return None
 
@@ -76,7 +114,7 @@ def test_optional_keys_round_trip_when_supplied() -> None:
         round_tripped = json.loads(to_json(event.payload))
         assert round_tripped == payload
         assert set(round_tripped) == set(spec.required) | set(spec.optional)
-    assert covered >= 1
+    assert covered == 4
 
 
 def test_unknown_event_type_is_rejected() -> None:
@@ -88,24 +126,79 @@ def test_unknown_event_type_is_rejected() -> None:
     assert supplied not in str(excinfo.value)
 
 
-def test_missing_required_payload_key_is_rejected() -> None:
-    payload = _payload("migration.applied")
-    del payload["to_revision"]
+_MISSING_REQUIRED_CASES: list[tuple[str, str]] = [
+    ("migration.applied", "from_revision"),
+    ("migration.applied", "to_revision"),
+    ("migration.applied", "backup_path"),
+    ("migration.applied", "skipped_reason"),
+    ("migration.applied", "schema_no_change"),
+    ("provider.error", "stage"),
+    ("provider.error", "error_class"),
+    ("budget.settle_unknown", "run_id"),
+    ("budget.settle_unknown", "reason"),
+    ("chat.answer", "article_id"),
+    ("chat.answer", "article_version"),
+    ("chat.answer", "section"),
+    ("chat.answer", "citation_ok"),
+    ("chat.answer", "top_k"),
+    ("chat.refusal", "reason"),
+]
+
+
+@pytest.mark.parametrize(("event_type", "field_name"), _MISSING_REQUIRED_CASES)
+def test_each_required_payload_key_is_rejected(event_type: str, field_name: str) -> None:
+    payload = _payload(event_type)
+    del payload[field_name]
     with pytest.raises(AuditSchemaError) as excinfo:
-        AuditEvent("migration.applied", payload)
+        AuditEvent(event_type, payload)
 
     assert excinfo.value.category == "missing_required_key"
-    assert excinfo.value.field_name == "to_revision"
+    assert excinfo.value.field_name == field_name
 
 
-def test_extra_payload_key_is_rejected() -> None:
-    payload = _payload("provider.error")
-    payload["undeclared_key_name"] = "value"
+_EXTRA_KEY_CASES: list[tuple[str, str]] = [
+    ("provider.error", "undeclared_key_name"),
+    ("chat.answer", "message"),
+    ("chat.refusal", "article_id"),
+]
+
+
+@pytest.mark.parametrize(("event_type", "extra_key"), _EXTRA_KEY_CASES)
+def test_extra_payload_key_is_rejected(event_type: str, extra_key: str) -> None:
+    payload = _payload(event_type)
+    payload[extra_key] = "value"
     with pytest.raises(AuditSchemaError) as excinfo:
-        AuditEvent("provider.error", payload)
+        AuditEvent(event_type, payload)
 
     assert excinfo.value.category == "extra_payload_key"
-    assert "undeclared_key_name" not in str(excinfo.value)
+    assert extra_key not in str(excinfo.value)
+
+
+_WRONG_TYPE_CASES: list[tuple[str, str, object]] = [
+    ("chat.answer", "article_id", 1),
+    ("chat.answer", "article_version", "1"),
+    ("chat.answer", "article_version", True),
+    ("chat.answer", "section", 1),
+    ("chat.answer", "citation_ok", 1),
+    ("chat.answer", "top_k", 3.0),
+    ("chat.answer", "mode", 1),
+    ("chat.refusal", "reason", 5),
+    ("chat.refusal", "top_k", "3"),
+    ("chat.refusal", "best_score_milli", 1.0),
+]
+
+
+@pytest.mark.parametrize(("event_type", "field_name", "bad_value"), _WRONG_TYPE_CASES)
+def test_declared_payload_kinds_are_enforced(
+    event_type: str, field_name: str, bad_value: object
+) -> None:
+    payload = _payload(event_type)
+    payload[field_name] = bad_value
+    with pytest.raises(AuditSchemaError) as excinfo:
+        AuditEvent(event_type, payload)
+
+    assert excinfo.value.category == "invalid_scalar_type"
+    assert excinfo.value.field_name == field_name
 
 
 def test_non_json_values_are_rejected() -> None:

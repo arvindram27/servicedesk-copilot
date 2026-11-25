@@ -34,3 +34,5 @@ jobs:
           tests/test_exposure_config.py
           tests/test_config.py
           tests/test_logging_redaction.py
+          tests/test_audit_schema.py
+          tests/test_ticket_create.py

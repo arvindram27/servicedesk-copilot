@@ -101,6 +101,48 @@ EVENT_TYPES: Final[dict[str, EventSpec]] = {
         node="budget",
         outcome="unknown",
     ),
+    "chat.answer": EventSpec(
+        required={
+            "article_id": _KIND_STR,
+            "article_version": _KIND_INT,
+            "section": _KIND_STR,
+            "citation_ok": _KIND_BOOL,
+            "top_k": _KIND_INT,
+        },
+        optional={"mode": _KIND_STR},
+        node="chat",
+        outcome="ok",
+    ),
+    "chat.refusal": EventSpec(
+        required={"reason": _KIND_STR},
+        optional={"top_k": _KIND_INT, "best_score_milli": _KIND_INT},
+        node="chat",
+        outcome="refused",
+    ),
+    "ticket.confirm": EventSpec(
+        required={"draft_hash": _KIND_STR, "token_issued": _KIND_BOOL},
+        optional={},
+        node="ticket",
+        outcome="ok",
+    ),
+    "ticket.create": EventSpec(
+        required={"ticket_id": _KIND_STR, "draft_hash": _KIND_STR},
+        optional={},
+        node="itsm",
+        outcome="ok",
+    ),
+    "ticket.replay": EventSpec(
+        required={"ticket_id": _KIND_STR, "draft_hash": _KIND_STR},
+        optional={},
+        node="itsm",
+        outcome="ok",
+    ),
+    "ticket.reject": EventSpec(
+        required={"reason": _KIND_STR},
+        optional={},
+        node="itsm",
+        outcome="refused",
+    ),
 }
 
 

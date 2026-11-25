@@ -1,0 +1,71 @@
+{
+  "format": 1,
+  "articles": [
+    {
+      "path": "data/kb/printing/PRN-001.md",
+      "sha256": "142bc3d1ceea9d3f82b98bebe7b67d6076503ae4813954229deb9fe3ef9c8933",
+      "bytes": 770,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-001",
+      "version": 1,
+      "title": "Printer shows offline",
+      "category": "hardware"
+    },
+    {
+      "path": "data/kb/printing/PRN-002.md",
+      "sha256": "f35137b2b0f0b87ed9cb4a3395609f07a94866148b8abafaeb55559509623eb6",
+      "bytes": 728,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-002",
+      "version": 1,
+      "title": "Paper jam in the printer",
+      "category": "hardware"
+    },
+    {
+      "path": "data/kb/printing/PRN-003.md",
+      "sha256": "887c96ce4942193d01348def535fa45c11be3c1e1f11c1f13fb2e818641538ff",
+      "bytes": 734,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-003",
+      "version": 1,
+      "title": "Toner is low",
+      "category": "hardware"
+    },
+    {
+      "path": "data/kb/printing/PRN-004.md",
+      "sha256": "a01f7aa9d9527dc4cdd42a205901e0e3df83e868513ff9460daa34749b6a9ed9",
+      "bytes": 790,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-004",
+      "version": 1,
+      "title": "Install a Windows printer driver",
+      "category": "hardware"
+    },
+    {
+      "path": "data/kb/printing/PRN-005.md",
+      "sha256": "6bdd46b97bf63834b83023436966cc8865b3f886d44045e1428c5e300fab6f91",
+      "bytes": 732,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-005",
+      "version": 1,
+      "title": "Network printer is unreachable",
+      "category": "hardware"
+    },
+    {
+      "path": "data/kb/printing/PRN-006.md",
+      "sha256": "0d6f22a069066bb4a41fb95655195678a6789084424514f81475f7243b6bc0a3",
+      "bytes": 680,
+      "kind": "kb_article",
+      "frozen_at": "2026-11-23T00:00:00Z",
+      "article_id": "PRN-006",
+      "version": 1,
+      "title": "Print queue is stuck",
+      "category": "hardware"
+    }
+  ]
+}

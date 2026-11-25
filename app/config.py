@@ -99,6 +99,10 @@ class Settings(BaseSettings):
     provider_timeout_s: float = 30.0
     hosted_api_key: SecretStr | None = None
     run_id: str | None = None
+    kb_dir: Path = PROJECT_ROOT / "data" / "kb"
+    kb_manifest_path: Path = PROJECT_ROOT / "data" / "fixtures" / "manifest.json"
+    retrieval_top_k: int = Field(default=3, ge=1, le=10)
+    retrieval_min_score: float = Field(default=0.5, ge=0, allow_inf_nan=False)
 
     @field_validator("listen_host")
     @classmethod

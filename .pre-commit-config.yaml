@@ -1,4 +1,6 @@
-# Pre-commit hook configuration.
+# Configuration only. Hooks are NOT installed and NOT run in Gate B0.
+# Script-file execution is blocked on the B0 machine, so these hooks are for
+# later gates and for CI, not for this gate.
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.17.6
