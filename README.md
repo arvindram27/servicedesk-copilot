@@ -2,20 +2,53 @@
 
 A local-only, single-user prototype of a policy-constrained IT support copilot. The project explores building LLM-assisted ticket handling where the safety controls are first-class, tested code rather than policy documents. Everything runs on one machine against synthetic data. The app binds to loopback by design and refuses a wider listen host at startup; it is not deployed or authenticated.
 
+## Status
+
+Nothing is deployed, qualified or measured. No readiness claim is made for any
+environment, workload or scope, and the phrase is not used unscoped anywhere in
+this repository. The project is under construction: Gate 1 adds a deterministic
+cited-answer read path and a confirmed ticket-creation slice, not a complete
+copilot. Phase estimates in the design plan are unvalidated planning numbers.
+
+Built and tested locally: configuration with loopback enforcement and single-instance locking, structured logging with redaction, the app factory, session bootstrap, health, readiness, and metrics, the stub write route behind the four write guards, the six-table schema and migrations, online backup, the audit module, the provider registry with fake and hosted adapters, the budget wrapper with its ledger, deterministic lexical retrieval with citation checks, and the ticket confirmation and creation routes with a local in-process stand-in.
+
+Not built: a real ITSM service or client, the agent loop with a hosted model, embeddings and a vector store, and a hosted model call. docker-compose still references the future ITSM module, so it does not run end to end.
+
 ## What it explores
 
 - **Fail-closed provider gating.** A registry admits exactly one provider. The hosted adapter is built and disabled by default; with an empty pricing catalog it refuses to call.
 - **Budget reservation accounting.** A budget wrapper reserves worst-case cost in an OS-locked JSON ledger before any provider call, settles the reservation from actual usage, and discards a result whose usage is missing or untrustworthy, holding the reservation as unknown.
-- **Confirmation and idempotency in the schema.** Ticket writes are designed around single-use confirmation tokens and idempotency keys, enforced by unique constraints and an atomic conditional update, exercised by concurrent-claim tests. The route that wires them to the mock ticket service is the next build gate.
-- **Browser write guards.** The stub write route requires the session cookie, a custom header, a same-origin check and a CSRF token; each guard is tested individually and in combination.
+- **Confirmation and idempotency in the schema.** Ticket writes are designed around single-use confirmation tokens and idempotency keys, enforced by unique constraints and an atomic conditional update, exercised by concurrent-claim tests. The routes that wire them to the local in-process stand-in are built; a real ITSM client is not.
+- **Browser write guards.** The stub write route requires a session identifier, a custom header, a same-origin check and a CSRF token; each guard is tested individually and in combination.
 - **Append-only audit.** An audit module writes to a table sealed against UPDATE and DELETE by SQLite triggers.
-- **Probing tests.** 325 tests pass with 1 skipped, covering concurrent token claims, backup under the instance lock, and log redaction through the real logging pipeline.
+- **Probing tests.** Local tests cover concurrent token claims, backup under the instance lock, and log redaction through the real logging pipeline. The dated local result is under Checks and evidence.
+
+## What exists now
+
+- Six synthetic hardware/printing articles in `data/kb/printing/`, described by
+  the frozen `data/fixtures/manifest.json`.
+- Deterministic lexical retrieval over section-sized chunks, with a
+  positive-evidence threshold and one stable answer or fixed refusal. The answer
+  text is an extract, not generated prose.
+- `POST /chat` and the `ask` CLI. The request is
+  `{"message": "...", "conversation_id": "optional UUID"}`. The response carries
+  `reply`, `citations`, `proposed_action: null` and `state`. An answer is a fixed
+  frame around a verbatim excerpt plus one citation: article ID, version,
+  section and exact character span. A refusal returns no citation.
+- Manifest verification at first ask: SHA-256, byte length, path containment and
+  duplicate identity. The verified snapshot is cached immutably for the process
+  lifetime.
+- One durable `chat.answer` or `chat.refusal` audit row per chat turn, written
+  in the caller-owned transaction. The endpoint is not zero-write.
+- Existing B0 to B5 pieces: configuration, structured logs, SQLite schema and
+  migration wrapper, loopback Host/Origin guards, sessions, health/readiness and
+  base metrics.
 
 ## Components
 
 ![Component view](docs/architecture.png)
 
-The wired application today is deliberately small: an app factory that validates configuration at construction, a session bootstrap route, health, readiness, and metrics endpoints, and one stub write route that exists to exercise the write guards. The provider registry, budget wrapper, and audit writer are built and tested as library modules. Wiring them to the mock ticket routes is the next gate.
+The wired application now includes an app factory that validates configuration at construction, a session bootstrap route, health, readiness, and metrics endpoints, the stub write route, the chat read path, and the ticket confirmation and creation routes. The provider registry, budget wrapper, and audit writer remain library modules; the ticket routes use a local in-process stand-in, not a real ITSM service.
 
 ## Budgeted provider call
 
@@ -27,39 +60,228 @@ This flow is implemented and tested as a library module. It is not wired to any 
 
 ![Entity relationships](docs/er.png)
 
-Six tables in a single SQLite database (WAL, STRICT, foreign keys on). A ticket's confirmation_token_id is nullable and set when a ticket is created with a confirmation token; its idempotency_key is a recorded reference, not an enforced foreign key. audit_events is append-only by trigger.
+Six tables in a single SQLite database (WAL, STRICT, foreign keys on). A ticket's confirmation_token_id is required and references confirmation_tokens; its idempotency_key is a recorded reference, not an enforced foreign key. audit_events is append-only by trigger.
 
 ## Stack
 
 Python 3.13, FastAPI, uvicorn, pydantic, SQLAlchemy and Alembic, SQLite, httpx, prometheus-client. Development tooling: pytest, ruff, mypy. Dockerfile and docker-compose are authored and statically checked only.
 
-## Status
+## Run the local slice
 
-Built and tested: configuration with loopback enforcement and single-instance locking, structured logging with redaction, the app factory, session bootstrap, health, readiness, and metrics, the stub write route behind the four write guards, the six-table schema and migrations, online backup, the audit module, the provider registry with fake and hosted adapters, and the budget wrapper with its ledger.
+These are the intended Windows commands, documented from the source and not
+executed for this README. Run them from the repository root.
 
-Not built: the mock ITSM service and the ticket-create route (Gate B6), and the agent loop with knowledge-base retrieval (Phase P1). docker-compose references the future ITSM module, so it does not run end to end yet.
+```powershell
+py -3.13 -m venv .venv
+.venv\Scripts\python -m pip install -r requirements-dev.txt
 
-## Honest limits
+# Create or upgrade runtime/servicedesk.db and record the migration audit event.
+.venv\Scripts\python -m scripts.migrate
 
-- Single user, unauthenticated by design. The session cookie is not an identity, and all data is synthetic.
+# Run the app on the loopback host and port the Host guard expects.
+.venv\Scripts\python -m uvicorn app.main:create_app --factory --host 127.0.0.1 --port 8000
+
+# In another terminal, ask a supported and an unsupported question.
+.venv\Scripts\python -m app.cli ask "my printer shows offline"
+.venv\Scripts\python -m app.cli ask "how do I bake sourdough bread"
+```
+
+If `.venv` already exists, skip the first two commands. `scripts.migrate`
+defaults to `runtime/servicedesk.db`, creates the parent directory and the
+database on first run, and records a skipped backup when the source does not
+exist yet. `scripts.backup` is available for an existing database. The app does
+not migrate at startup, so run `scripts.migrate` before the first `/chat`.
+`SDC_DATABASE_PATH` overrides the database file but must resolve inside
+`SDC_RUNTIME_DIR` (default `runtime/`). If you set `SDC_LISTEN_HOST` or
+`SDC_LISTEN_PORT`, pass the same host and port to uvicorn; the defaults are
+`127.0.0.1:8000`. The install step needs access to your configured package
+index. If `py -3.13` is not available, use your Python 3.13 executable in place
+of it.
+
+## Check and stop the local server
+
+With the server running, check liveness and readiness:
+
+```powershell
+Invoke-WebRequest -Uri 'http://127.0.0.1:8000/healthz' -NoProxy -TimeoutSec 5 -UseBasicParsing
+Invoke-WebRequest -Uri 'http://127.0.0.1:8000/readyz' -NoProxy -TimeoutSec 5 -UseBasicParsing
+```
+
+`/healthz` returned HTTP 200 with `{"status":"alive","version":"0.0.0"}` in the demo. `/readyz` returned HTTP 200 with `status: ready`, `mode: ci_fake`, `checks.db.status: ok`, `checks.db.detail: write_probe_rolled_back`, `checks.vector_store.status: not_configured`, `checks.provider.status: not_required` and `checks.provider_upstream.status: unverified`. Readiness is a bounded local check; it does not prove the schema revision or that `/chat` can write audit rows. Use `/healthz`, not `/health`; `/health` is not a route and returns 404.
+
+The server binds loopback only. The Host guard expects the same host and port as `SDC_LISTEN_HOST` and `SDC_LISTEN_PORT` (defaults `127.0.0.1:8000`).
+
+The demo was stopped with `taskkill /PID <launcher-pid> /T /F` after `taskkill` without `/F` was refused for the console process. That is a force stop, not a graceful shutdown, and it does not prove lifespan disposal. Stop only the process tree you started.
+
+The database uses WAL. While it is open, SQLite may create `servicedesk.db-wal` and `servicedesk.db-shm` beside `runtime/servicedesk.db`. Both appeared after the read-only audit check in the demo. Do not delete them while a process may have the database open.
+
+## Knowledge base and citations
+
+This slice supports only the fixed `<repo>/data/kb` shape. `Settings.kb_dir`
+defaults there, the loader derives the project root as two levels above it, and
+manifest entries are project-relative paths such as
+`data/kb/printing/PRN-001.md`. A relocated KB is not supported.
+
+The manifest is verified once, on the first ask, and cached as an immutable
+snapshot. Restart the process to pick up changed article content or a changed
+manifest. A missing or invalid KB returns 503 `kb_unavailable`; a missing or
+unmigrated audit database returns 503 `audit_unavailable`. There is no automatic
+repair script.
+
+Citation checks prove identity, version and exact span against the verified
+snapshot. They do not prove that the cited text answers the question correctly
+or that the troubleshooting content is company policy. The six articles are
+synthetic demo content, not vendor guidance.
+
+## Checks and evidence
+
+Local results reported on 25 November 2026 in this tree: Ruff check and format
+passed; the full suite passed 435 tests with one Windows filename skip. These are
+local results, not a CI result. CI runs Ruff check and format plus the three B0
+modules, `tests/test_exposure_config.py`, `tests/test_config.py` and
+`tests/test_logging_redaction.py`, and the ticket modules
+`tests/test_audit_schema.py` and `tests/test_ticket_create.py`; it does not run
+the Gate 1 chat, KB or citation tests, the lifespan test, or a migration. Full
+pytest is not part of CI. The GitHub workflow has not run yet. The pytest-asyncio
+fixture-loop-scope warning and the Starlette/httpx deprecation warning remain.
+The lifespan test asserts that the app-owned audit engine is disposed on
+shutdown; it uses a recording engine, so it proves the lifespan wiring, not real
+connection-pool behavior.
+
+There is no installed pre-commit hook in this checkout.
+`.pre-commit-config.yaml` is configuration only; its presence is not active
+enforcement.
+
+```powershell
+.venv\Scripts\ruff.exe check --no-cache .
+.venv\Scripts\ruff.exe format --check --no-cache .
+.venv\Scripts\python -m pytest
+```
+
+### Ticket creation (local slice)
+
+- `POST /api/ticket-confirmations` issues a single-use token bound to the draft
+  hash, the local requester and the session. `POST /api/tickets` consumes it once,
+  in one immediate transaction, and replays the stored ticket for the same key
+  and draft.
+- Proven locally: draft validation and hashing, token binding, one create,
+  same-key replay, draft-change and consumed-token rejects, rollback on audit or
+  late failure, locked-store 503, and no token or draft text in audit payloads.
+- Not proven: racing creates, a crash between commit and reply, a live in-flight
+  409, fencing, a startup sweep, invalid-JSON or empty-body problem bodies (still
+  the framework default 422), the internal ITSM listener, or any real ITSM call.
+- Known limits: a same-key replay is scoped to the local requester, not the
+  session. A retry with the same key and the same draft returns the stored ticket
+  from a different session. This is tested with a fresh app instance on the same
+  database, not a real process restart. The adapter is a local in-process
+  stand-in, not an ITSM.
+- Category: matched by name, ignoring case and outer spaces. Case folding is
+  ASCII only, as read from the code and not tested. A category switched off
+  before create refuses the create and leaves the confirmation unused. A rename
+  is not tested. Category IDs are not accepted.
+- CI runs the three B0 modules plus `tests/test_audit_schema.py` and
+  `tests/test_ticket_create.py`. Full pytest is not part of CI.
+
+## Limits
+
+- Requester labels and confirmation tokens, when they exist, are scoping and
+  confirmation conveniences, not identity or authority.
+- Gate 1 chat audit rows leave `requester_label` and `duration_ms` NULL: the
+  `/chat` contract carries no requester label and the chat path does not measure
+  per-turn duration. Both audit columns are optional.
+- No hosted model call is made from this repository state. The hosted adapter is
+  not part of Gate 1 and remains disabled by default.
+- Gate 1 adds a local ticket, token and idempotency slice (see the Ticket
+  creation section above), but no real ITSM write and no real model, embedding
+  or held-out benchmark.
+- `/readyz` reports bounded local conditions only. It does not prove the schema
+  is migrated or that `/chat` can write audit rows.
+- `InstanceLock` exists in `app/config.py` but the app factory does not acquire
+  it. Run one process.
+- Docker and Compose remain an authored scaffold, not a Gate 1 runnable path.
+  The image does not include `data`, `alembic` or `scripts`, and Compose still
+  references the B6 ITSM module. No image is built or started.
 - A provider result without trustworthy usage is discarded and its reservation stays held; recording that outcome is best-effort, not audit-complete.
 - Budget caps and pricing are adopted at process start.
-- No readiness claim for any environment, workload, or scope.
+- Single user, unauthenticated by design. The session identifier is not an identity, and all data is synthetic.
+
+## Decision notes
+
+These notes record earlier gate decisions; they are not a current build status.
+
+1. **B1 (schema/migrations):** drop the `ux_tokens_single_consumption` index
+   from the Revision 1 schema. `token_id` is already the primary key, so the
+   pair index enforces nothing. The single-use guarantee is the atomic
+   `UPDATE ... WHERE consumed_at IS NULL` plus `ux_tickets_token`. Also add the
+   missing foreign key `tickets.confirmation_token_id REFERENCES
+   confirmation_tokens(token_id)`. Not built in B0.
+
+2. **B5 (budget bound):** the Revision 1 wording "a count the provider itself
+   reported for the identical request shape" is not a valid bound. An identical
+   shape with different content can have a different token count. A
+   provider-reported count is valid only for a byte-identical re-send of the
+   exact same request content, which is the retry case. First-time requests need
+   the provider's count endpoint or a model-pinned tokenizer, or hosted mode
+   fails closed. Not built in B0.
+
+3. **B0a (environment):** two provider variables were present in the OpenCode
+   shell at B0. Project commands ran in a scrubbed child environment that
+   removes those two names by name only; the parent and saved environment were
+   not modified.
+
+4. **B0 repair (lock ownership and log extras):** `InstanceLock` now takes
+   ownership from an OS advisory lock held on an open descriptor
+   (`msvcrt.locking` on Windows, `fcntl.flock` on POSIX). Byte 0 is a lock cell
+   that is never written; the diagnostic record is a fixed 96-byte cell at
+   offset 1, overwritten in place, and the file is never truncated or deleted.
+   A crash releases the lock in the kernel, so stale text cannot wedge a
+   restart. Never fork while holding the lock. The POSIX branch is not exercised
+   by any run yet. Structured log extras (`event`, `outcome`, `request_id`,
+   `session_id`) accept exact builtin scalars only: strings are redacted,
+   booleans, integers and finite floats pass through, and everything else
+   becomes the constant `[REJECTED]`, so an arbitrary object's `__str__` is
+   never called.
+
+5. **B1 (schema and migrations):** migration `0001` creates the six-table
+   schema as amended by note 1, with every table `STRICT` and every `TEXT`
+   primary key declared `NOT NULL`. `audit_events` is append-only by trigger
+   (`trg_audit_no_update`, `trg_audit_no_delete`), not merely by convention.
+   The database path is owned by `Settings`: `SDC_DATABASE_PATH`, defaulting to
+   `<runtime>/servicedesk.db`, and an override is validated to resolve inside
+   the runtime directory. Connections use WAL, `foreign_keys=ON` and a 5 s busy
+   timeout through one shared helper; under WAL, plain file copy is **not** a
+   valid backup, and the later backup gate must use the SQLite online backup
+   API.
+
+6. **B1b (backup and migration wrapper):** backups use the SQLite online backup
+   API only, from a `mode=rw` URI built with `Path.as_uri()`, so a missing source
+   is never created. The artifact is finalized to `journal_mode=DELETE`, opened
+   read-only for `PRAGMA integrity_check` and the schema revision, then hashed;
+   the SHA-256 and size are recorded in `<artifact>.manifest.json`. That is
+   snapshot verification, **not** proof of content equivalence with a changing
+   source, and `integrity_check` is not a proof of semantic correctness; the
+   restore drill remains a later gate. The copy deadline is cooperative, checked
+   before the copy and between page chunks; it is not a wall-clock guarantee,
+   and finalization, verification and hashing are outside it. Standalone backup
+   may run against a live database; **schema migration must run in a maintenance
+   window with all other writers stopped**. The wrapper's persistent
+   `<database>.migrate.lock` serialises cooperating manual wrappers on one local
+   filesystem only: it cannot stop arbitrary SQLite clients, direct Alembic runs
+   or an application that does not honour it, and its presence alone is never
+   ownership. First run skips the backup with a recorded reason and creates the
+   schema. Backups and lock files are retained; there is no rotation or cleanup.
+   SQLite itself may create, rewrite and remove its own journal/WAL/SHM support
+   files, including while the artifact is finalized to DELETE mode; no project
+   code or test deletes a database, artifact, manifest, lock file or directory.
 
 ## Development
 
-Setup steps (not smoke-tested on a fresh machine):
-
-```
-python -m venv .venv
-.venv\Scripts\pip install -r requirements-dev.txt
-.venv\Scripts\pytest
-```
+Setup is described in Run the local slice above.
 
 Layout:
 
 ```
-app/        config, logging, db, audit, security, providers, embeddings, routes
+app/        config, logging, db, audit, security, providers, embeddings, chat, tickets, health, session
 alembic/    migration environment, revision 0001
 scripts/    migrate and backup wrappers
 tests/      unit, integration, and concurrency tests
