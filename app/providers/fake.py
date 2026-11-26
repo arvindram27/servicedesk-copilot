@@ -45,6 +45,21 @@ SCENES: dict[str, Scene] = {
         completion_tokens=8,
         finish_reason="stop",
     ),
+    "ticket_draft": Scene(
+        text=(
+            '{"title": "Printer offline", "description": '
+            '"The printer is offline.", "category": "hardware"}'
+        ),
+        prompt_tokens=64,
+        completion_tokens=24,
+        finish_reason="stop",
+    ),
+    "ticket_draft_invalid": Scene(
+        text="not a JSON draft",
+        prompt_tokens=64,
+        completion_tokens=8,
+        finish_reason="stop",
+    ),
 }
 
 

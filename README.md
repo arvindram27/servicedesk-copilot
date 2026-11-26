@@ -12,7 +12,7 @@ copilot. Phase estimates in the design plan are unvalidated planning numbers.
 
 Built and tested locally: configuration with loopback enforcement and single-instance locking, structured logging with redaction, the app factory, session bootstrap, health, readiness, and metrics, the stub write route behind the four write guards, the six-table schema and migrations, online backup, the audit module, the provider registry with fake and hosted adapters, the budget wrapper with its ledger, deterministic lexical retrieval with citation checks, and the ticket confirmation and creation routes with a local in-process stand-in.
 
-Not built: a real ITSM service or client, the agent loop with a hosted model, embeddings and a vector store, and a hosted model call. docker-compose still references the future ITSM module, so it does not run end to end.
+Not built: a real ITSM service or client, the full agent loop, embeddings and a vector store, and a hosted model call. The optional ticket-draft route exists but is exercised with the fake provider only; no hosted call has been made. docker-compose still references the future ITSM module, so it does not run end to end.
 
 ## What it explores
 
@@ -54,7 +54,7 @@ The wired application now includes an app factory that validates configuration a
 
 ![Budgeted provider call](docs/budgeted-call.png)
 
-This flow is implemented and tested as a library module. It is not wired to any route yet.
+This flow is implemented and tested as a library module. It is reachable only through the optional ticket-draft route, which the demo and the tests exercise with the fake provider.
 
 ## Data model
 
@@ -127,6 +127,30 @@ suite. The path is local only: it uses the in-process stand-in, not a real
 ITSM, and makes no model call. The seed adds only the local requester and the
 Hardware category; it does not create the database.
 
+### Draft a ticket with a model (optional)
+
+`POST /api/ticket-drafts` takes `{"message": "..."}` with the session and CSRF
+headers and returns a validated draft. In `ci_fake` and `demo_fake` mode the
+route returns the same fixed scripted draft whatever the user types; that draft
+is a scripted fixture, not model output, and is not evidence of model quality.
+The provider may supply only a title, a description and a category suggestion.
+The route validates them with the same draft validation and active-category
+lookup the ticket routes use, and priority stays `normal`. The route never
+creates a ticket, a confirmation token or an idempotency key. Confirmation and
+creation are unchanged and remain the only write path.
+
+Hosted mode is off by default. It needs `SDC_MODE=hosted`, an explicit
+`SDC_ALLOW_HOSTED_CALLS=true`, a per-run approval file, a provider name, model
+and base URL, a token counter and `SDC_HOSTED_API_KEY`. `config/pricing.yaml` is
+empty, so hosted mode fails closed today: a pricing lookup cannot resolve and no
+provider client is built. No hosted call has been made from this repository
+state.
+
+The provider would see the ticket text, so use synthetic text only. A provider
+failure or a budget-ledger file or lock failure returns a fixed 503, and invalid
+or non-JSON model output returns a fixed 422 `invalid_draft`; no response echoes
+model text, a key or provider detail. No prompt or completion is logged.
+
 ## Check and stop the local server
 
 With the server running, check liveness and readiness:
@@ -165,14 +189,18 @@ synthetic demo content, not vendor guidance.
 ## Checks and evidence
 
 Local results reported on 26 November 2026 in this tree: Ruff check and format
-passed; the full suite passed 439 tests with one Windows filename skip. These are
-local results, not a CI result. CI runs Ruff check and format plus the three B0
-modules, `tests/test_exposure_config.py`, `tests/test_config.py` and
+passed; the full suite passed 448 tests with one Windows filename skip. The full
+run was done with the local demo database `runtime/servicedesk.db` renamed aside,
+not deleted and not opened, because three existing tests assert that path does
+not exist and failed while it was present. These are local results, not a CI
+result. CI runs Ruff check and format plus the three B0 modules,
+`tests/test_exposure_config.py`, `tests/test_config.py` and
 `tests/test_logging_redaction.py`, and the ticket modules
-`tests/test_audit_schema.py`, `tests/test_ticket_create.py` and
-`tests/test_demo_seed.py`; it does not run the Gate 1 chat, KB or citation tests,
-the lifespan test, or a migration. Full pytest is not part of CI. The GitHub
-workflow runs on push; this README does not record its result. The pytest-asyncio
+`tests/test_audit_schema.py`, `tests/test_ticket_create.py`,
+`tests/test_demo_seed.py` and `tests/test_ticket_draft.py`; it does not run the
+Gate 1 chat, KB or citation tests, the lifespan test, or a migration. Full pytest
+is not part of CI. The GitHub workflow runs on push; this README does not record
+its result. The pytest-asyncio
 fixture-loop-scope warning and the Starlette/httpx deprecation warning remain.
 The lifespan test asserts that the app-owned audit engine is disposed on
 shutdown; it uses a recording engine, so it proves the lifespan wiring, not real
@@ -210,8 +238,8 @@ enforcement.
   before create refuses the create and leaves the confirmation unused. A rename
   is not tested. Category IDs are not accepted.
 - CI runs the three B0 modules plus `tests/test_audit_schema.py`,
-  `tests/test_ticket_create.py` and `tests/test_demo_seed.py`. Full pytest is
-  not part of CI.
+  `tests/test_ticket_create.py`, `tests/test_demo_seed.py` and
+  `tests/test_ticket_draft.py`. Full pytest is not part of CI.
 
 ## Limits
 
@@ -222,6 +250,14 @@ enforcement.
   per-turn duration. Both audit columns are optional.
 - No hosted model call is made from this repository state. The hosted adapter is
   not part of Gate 1 and remains disabled by default.
+- The optional ticket-draft route returns a scripted draft in `ci_fake` and
+  `demo_fake` mode whatever the user types. It proves the route, the guards and
+  the validation, not model output. The provider would see the ticket text, so
+  use synthetic text only. `config/pricing.yaml` is empty, so hosted mode fails
+  closed today.
+- The prompt-token bound used before a hosted call is the UTF-8 byte count plus
+  a fixed per-message margin. A token is at least one byte, so the bound should
+  not undercount, but the margin is an assumption, not a tokenizer measurement.
 - Gate 1 adds a local ticket, token and idempotency slice (see the Ticket
   creation section above), but no real ITSM write and no real model, embedding
   or held-out benchmark.

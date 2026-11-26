@@ -15,6 +15,7 @@ from fastapi import FastAPI
 from app.chat import router as chat_router
 from app.config import Settings
 from app.db.connection import create_engine_for
+from app.drafts import router as drafts_router
 from app.health import router as health_router
 from app.metrics import install_metrics
 from app.session import SessionStore
@@ -47,6 +48,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(session_router)
     app.include_router(stub_router)
     app.include_router(tickets_router)
+    app.include_router(drafts_router)
     app.include_router(chat_router)
     install_metrics(app)
     return app
