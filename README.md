@@ -12,7 +12,7 @@ copilot. Phase estimates in the design plan are unvalidated planning numbers.
 
 Built and tested locally: configuration with loopback enforcement and single-instance locking, structured logging with redaction, the app factory, session bootstrap, health, readiness, and metrics, the stub write route behind the four write guards, the six-table schema and migrations, online backup, the audit module, the provider registry with fake and hosted adapters, the budget wrapper with its ledger, deterministic lexical retrieval with citation checks, and the ticket confirmation and creation routes with a local in-process stand-in.
 
-Not built: a real ITSM service or client, the full agent loop, embeddings and a vector store, and a hosted model call. The optional ticket-draft route exists but is exercised with the fake provider only; no hosted call has been made. docker-compose still references the future ITSM module, so it does not run end to end.
+Not built: a real ITSM service or client, the full agent loop, embeddings and a vector store, and hosted model use beyond that one sample. The optional ticket-draft route has been exercised once against a hosted provider (one synthetic message on 2026-11-27); that single sample is not evidence of reliability or accuracy. docker-compose still references the future ITSM module, so it does not run end to end.
 
 ## What it explores
 
@@ -54,14 +54,18 @@ The wired application now includes an app factory that validates configuration a
 
 ![Budgeted provider call](docs/budgeted-call.png)
 
-This flow is implemented and tested as a library module. It is reachable only through the optional ticket-draft route, which the demo and the tests exercise with the fake provider.
+This flow is implemented and tested as a library module. It is reachable only through the optional ticket-draft route, which the demo and the tests exercise with the fake provider, and which was run once against a hosted provider on 2026-11-27.
 
 The hosted adapter sends `max_completion_tokens` and `reasoning_effort: none`, and no
 longer sends `temperature`, following the OpenAI Chat Completions reference read on
 27 November 2026. `config/pricing.yaml` now has a `gpt-6-luna` entry under provider
 `openai`, sourced from the OpenAI pricing page read on 27 November 2026; prices can
-change. No hosted call has been made. The first live call needs its own approval, a
-spending cap and a key set at run time, and nothing here shows that hosted mode works.
+change. One hosted call has been made on 2026-11-27, with model `gpt-6-luna`, one
+synthetic message and run `live-1`: the request was accepted and the reply parsed
+into a draft, and the local ledger recorded 64 prompt and 37 completion tokens,
+about $0.000025. That is a single sample and says nothing about accuracy,
+reliability, latency, other models or real tickets. Hosted calls remain off by
+default and still need the gate settings, an approval file and a key at run time.
 
 ## Data model
 
@@ -148,10 +152,9 @@ creation are unchanged and remain the only write path.
 
 Hosted mode is off by default. It needs `SDC_MODE=hosted`, an explicit
 `SDC_ALLOW_HOSTED_CALLS=true`, a per-run approval file, a provider name, model
-and base URL, a token counter and `SDC_HOSTED_API_KEY`. `config/pricing.yaml` is
-empty, so hosted mode fails closed today: a pricing lookup cannot resolve and no
-provider client is built. No hosted call has been made from this repository
-state.
+and base URL, a token counter and `SDC_HOSTED_API_KEY`. `config/pricing.yaml` holds
+one entry, `openai` / `gpt-6-luna`; any other provider or model has no price and
+hosted mode fails closed before a client is built.
 
 The provider would see the ticket text, so use synthetic text only. A provider
 failure or a budget-ledger file or lock failure returns a fixed 503, and invalid
@@ -255,13 +258,13 @@ enforcement.
 - Gate 1 chat audit rows leave `requester_label` and `duration_ms` NULL: the
   `/chat` contract carries no requester label and the chat path does not measure
   per-turn duration. Both audit columns are optional.
-- No hosted model call is made from this repository state. The hosted adapter is
-  not part of Gate 1 and remains disabled by default.
+- One hosted model call was made on 2026-11-27 (one synthetic message, run live-1).
+  Hosted mode remains off by default and is not part of Gate 1.
 - The optional ticket-draft route returns a scripted draft in `ci_fake` and
   `demo_fake` mode whatever the user types. It proves the route, the guards and
   the validation, not model output. The provider would see the ticket text, so
-  use synthetic text only. `config/pricing.yaml` is empty, so hosted mode fails
-  closed today.
+  use synthetic text only. `config/pricing.yaml` has one `gpt-6-luna` entry, so any
+  other model fails closed.
 - The prompt-token bound used before a hosted call is the UTF-8 byte count plus
   a fixed per-message margin. A token is at least one byte, so the bound should
   not undercount, but the margin is an assumption, not a tokenizer measurement.
@@ -278,6 +281,7 @@ enforcement.
 - A provider result without trustworthy usage is discarded and its reservation stays held; recording that outcome is best-effort, not audit-complete.
 - Budget caps and pricing are adopted at process start.
 - Single user, unauthenticated by design. The session identifier is not an identity, and all data is synthetic.
+- The single hosted call on 2026-11-27 shows that one request was accepted and parsed, and that the ledger settled it at about $0.000025. It does not show accuracy, reliability, latency, cost at other sizes, other models, or behaviour on real ticket text, and its figures were not compared with the provider's own billing.
 
 ## Decision notes
 
@@ -359,7 +363,7 @@ app/        config, logging, db, audit, security, providers, embeddings, chat, t
 alembic/    migration environment, revision 0001
 scripts/    migrate and backup wrappers
 tests/      unit, integration, and concurrency tests
-config/     pricing catalog (empty by default; hosted mode refuses calls)
+config/     pricing catalog (one gpt-6-luna entry; other models refuse)
 ```
 
 ## License
