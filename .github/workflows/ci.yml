@@ -38,3 +38,4 @@ jobs:
           tests/test_ticket_create.py
           tests/test_demo_seed.py
           tests/test_ticket_draft.py
+          tests/test_providers.py

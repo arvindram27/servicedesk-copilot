@@ -1,10 +1,10 @@
 # Provider pricing table for the hosted adapter (B5 and later).
 #
-# Empty until provider and model selection is made at its own reviewed gate.
-# Until an entry exists, hosted mode fails closed: the money cap cannot be
-# enforced without per-token prices and any fixed per-request fee.
+# Holds one entry: openai gpt-6-luna, from the OpenAI pricing page read on
+# 2026-11-27. Prices can change and must be re-checked before any live call.
+# Any other provider or model needs its own entry, or hosted mode fails closed.
 #
-# Entry shape (documented, not yet populated):
+# Entry shape (documented):
 #   providers:
 #     <provider-key>:
 #       models:
@@ -12,3 +12,12 @@
 #           input_price_per_token: "<decimal>"
 #           output_price_per_token: "<decimal>"
 #           fixed_fee_per_request: "<decimal>"
+#
+# Source: https://platform.openai.com/docs/pricing, Standard tier, short context, read 2026-11-27. Per-token values derived from USD per 1M tokens.
+providers:
+  openai:
+    models:
+      gpt-6-luna:
+        input_price_per_token: "0.0000001"
+        output_price_per_token: "0.0000005"
+        fixed_fee_per_request: "0"

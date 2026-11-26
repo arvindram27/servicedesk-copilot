@@ -56,6 +56,13 @@ The wired application now includes an app factory that validates configuration a
 
 This flow is implemented and tested as a library module. It is reachable only through the optional ticket-draft route, which the demo and the tests exercise with the fake provider.
 
+The hosted adapter sends `max_completion_tokens` and `reasoning_effort: none`, and no
+longer sends `temperature`, following the OpenAI Chat Completions reference read on
+27 November 2026. `config/pricing.yaml` now has a `gpt-6-luna` entry under provider
+`openai`, sourced from the OpenAI pricing page read on 27 November 2026; prices can
+change. No hosted call has been made. The first live call needs its own approval, a
+spending cap and a key set at run time, and nothing here shows that hosted mode works.
+
 ## Data model
 
 ![Entity relationships](docs/er.png)
@@ -188,8 +195,8 @@ synthetic demo content, not vendor guidance.
 
 ## Checks and evidence
 
-Local results reported on 26 November 2026 in this tree: Ruff check and format
-passed; the full suite passed 448 tests with one Windows filename skip. The full
+Local results reported on 27 November 2026 in this tree: Ruff check and format
+passed; the full suite passed 449 tests with one Windows filename skip. The full
 run was done with the local demo database `runtime/servicedesk.db` renamed aside,
 not deleted and not opened, because three existing tests assert that path does
 not exist and failed while it was present. These are local results, not a CI

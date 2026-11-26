@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import json
+from decimal import Decimal
 from pathlib import Path
 
 import httpx
 import pytest
 import yaml
-from app.config import Mode, Settings
+from app.config import PROJECT_ROOT, Mode, Settings
 from app.providers.base import (
     ChatRequest,
     Message,
@@ -454,5 +455,16 @@ def test_body_carries_only_the_declared_fields(tmp_path: Path) -> None:
     provider.chat(_request())
 
     body = json.loads(captured[0])
-    assert set(body) == {"model", "messages", "max_tokens", "temperature"}
+    assert set(body) == {"model", "messages", "max_completion_tokens", "reasoning_effort"}
+    assert body["reasoning_effort"] == "none"
+    assert "max_tokens" not in body
+    assert "temperature" not in body
     assert "CONFIRMATION-TOKEN-SENTINEL" not in captured[0].decode("utf-8")
+
+
+def test_project_pricing_file_loads_gpt_6_luna() -> None:
+    pricing = load_pricing("openai", "gpt-6-luna", PROJECT_ROOT / "config" / "pricing.yaml")
+
+    assert pricing.input_price_per_token == Decimal("0.0000001")
+    assert pricing.output_price_per_token == Decimal("0.0000005")
+    assert pricing.fixed_fee_per_request == Decimal("0")

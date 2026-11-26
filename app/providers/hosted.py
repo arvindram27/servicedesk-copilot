@@ -196,13 +196,15 @@ class HostedProvider:
         validate_chat_request(request)
         self.bound_prompt_tokens(request)
 
+        # Field names follow the OpenAI Chat Completions reference read on 27 Nov 2026.
+        # Temperature is not sent: newer reasoning models may reject it.
         body = {
             "model": self.model,
             "messages": [
                 {"role": message.role, "content": message.content} for message in request.messages
             ],
-            "max_tokens": request.max_tokens,
-            "temperature": request.temperature,
+            "max_completion_tokens": request.max_tokens,
+            "reasoning_effort": "none",
         }
         started = time.perf_counter()
         try:
